@@ -7,6 +7,7 @@ export interface TaskAssignee {
 export interface Task {
   id: string;
   title: string;
+  description: string;
   priority: TaskPriority;
   assignee: TaskAssignee;
   dueDate: string;

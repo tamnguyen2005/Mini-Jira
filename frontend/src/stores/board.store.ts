@@ -3,50 +3,39 @@ import type { Task } from "../types/task.type";
 import { create } from "zustand";
 interface BoardState {
   tasks: Task[];
+  isModalOpen: boolean;
+  taskToEdit: Task | null;
   addTask: (task: Task) => void;
+  updateTask: (id: string, task: Partial<Task>) => void;
+  openCreateModal: () => void;
+  openEditModal: (task: Task) => void;
+  closeModal: () => void;
 }
 export const useBoardStore = create<BoardState>()(
   devtools(
     persist(
       (set) => ({
-        tasks: [
-          {
-            id: "1",
-            title: "Thiết lập cấu trúc Monorepo",
-            assignee: {
-              id: "user_1",
-              name: "Minh Tam",
-            },
-            createdAt: new Date().toISOString(),
-            dueDate: new Date().toISOString(),
-            priority: "HIGH",
-            status: "BACKLOG",
-          },
-          {
-            id: "2",
-            title: "Bật TypeScript Strict Mode",
-            assignee: {
-              id: "user_2",
-              name: "Dang Khoa",
-            },
-            createdAt: new Date().toISOString(),
-            dueDate: new Date().toISOString(),
-            priority: "HIGH",
-            status: "TODO",
-          },
-          {
-            id: "3",
-            title: "Dựng bộ khung Layout 4 cột",
-            assignee: {
-              id: "user_3",
-              name: "Khoi Nguyen",
-            },
-            createdAt: new Date().toISOString(),
-            dueDate: new Date().toISOString(),
-            priority: "HIGH",
-            status: "IN_PROGRESS",
-          },
-        ],
+        tasks: [],
+        isModalOpen: false,
+        taskToEdit: null,
+        openCreateModal: () =>
+          set(
+            { isModalOpen: true, taskToEdit: null },
+            false,
+            "task/openCreateBoard",
+          ),
+        openEditModal: (task) =>
+          set(
+            { isModalOpen: true, taskToEdit: task },
+            false,
+            "task/openEditBoard",
+          ),
+        closeModal: () =>
+          set(
+            { isModalOpen: false, taskToEdit: null },
+            false,
+            "task/closeModal",
+          ),
         addTask: (task) =>
           set(
             (state) => ({
@@ -55,6 +44,7 @@ export const useBoardStore = create<BoardState>()(
                 {
                   id: Date.now().toString(),
                   title: task.title,
+                  description: task.description,
                   assignee: task.assignee,
                   createdAt: new Date().toISOString(),
                   dueDate: new Date().toISOString(),
@@ -65,6 +55,21 @@ export const useBoardStore = create<BoardState>()(
             }),
             false,
             "task/addTask",
+          ),
+        updateTask: (id, task) =>
+          set(
+            (state) => ({
+              tasks: state.tasks.map((t) =>
+                t.id === id
+                  ? {
+                      ...t,
+                      ...task,
+                    }
+                  : t,
+              ),
+            }),
+            false,
+            "task/updateTask",
           ),
       }),
       { name: "board-storage" },
