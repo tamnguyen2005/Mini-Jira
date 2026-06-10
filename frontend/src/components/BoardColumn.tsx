@@ -1,6 +1,7 @@
 import React from "react";
 import type { Task, TaskStatus } from "../types/task.type";
 import { TaskCard } from "./TaskCard";
+import { Droppable } from "@hello-pangea/dnd";
 
 interface BoardColumnProps {
   title: string;
@@ -10,6 +11,7 @@ interface BoardColumnProps {
 
 export const BoardColumn: React.FC<BoardColumnProps> = ({
   title,
+  status,
   tasks,
 }) => {
   return (
@@ -23,15 +25,28 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
         </span>
       </div>
 
-      <div className="flex-1 flex flex-col gap-3">
-        {tasks.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-            <p className="text-gray-400 text-sm">Chưa có nhiệm vụ nào</p>
+      <Droppable droppableId={status}>
+        {(provided, snapshot) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            className={`flex-1 flex flex-col gap-3 p-1 rounded-lg transition-colors duration-200 min-h-37.5
+              ${snapshot.isDraggingOver ? "bg-blue-50/60 border-2 border-dashed border-blue-200" : ""}
+            `}
+          >
+            {tasks.length === 0 && !snapshot.isDraggingOver ? (
+              <div className="flex-1 flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                <p className="text-gray-400 text-sm">Chưa có nhiệm vụ nào</p>
+              </div>
+            ) : (
+              tasks.map((task, index) => (
+                <TaskCard key={task.id} index={index} task={task} />
+              ))
+            )}
+            {provided.placeholder}
           </div>
-        ) : (
-          tasks.map((task) => <TaskCard key={task.id} task={task} />)
         )}
-      </div>
+      </Droppable>
     </div>
   );
 };
