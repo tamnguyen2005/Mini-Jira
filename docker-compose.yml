@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:${POSTGRES_VERSION:-16-alpine}
+    container_name: ${POSTGRES_CONTAINER_NAME:-mini-jira-postgres}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-mini_jira}
+      POSTGRES_USER: ${POSTGRES_USER:-mini_jira}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mini_jira_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

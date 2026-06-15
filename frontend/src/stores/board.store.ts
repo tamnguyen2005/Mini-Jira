@@ -1,17 +1,30 @@
 import { devtools, persist } from "zustand/middleware";
 import type { Task, TaskStatus } from "../types/task.type";
+import type { TaskFormOutput } from "../schemas/task.schema";
 import { create } from "zustand";
-import { taskService } from "../services/task.service";
+import {
+  taskService,
+  type UpdateStatusRequest,
+} from "../services/task.service";
 interface BoardState {
   tasks: Task[];
   isModalOpen: boolean;
   taskToEdit: Task | null;
-  addTask: (task: Task) => void;
-  updateTask: (id: string, task: Partial<Task>) => void;
-  moveTask: (id: string, status: TaskStatus, index: number) => Promise<void>;
+  isLoading: boolean;
+  fetchError: string | null;
+  addTask: (task: TaskFormOutput) => Promise<void>;
+  updateTask: (id: string, task: TaskFormOutput) => Promise<void>;
+  moveTask: (
+    id: string,
+    sourceStatus: TaskStatus,
+    desStatus: TaskStatus,
+    index: number,
+  ) => Promise<void>;
   openCreateModal: () => void;
   openEditModal: (task: Task) => void;
   closeModal: () => void;
+  fetchTasks: () => Promise<Task[]>;
+  deleteTask: (id: string) => Promise<void>;
 }
 export const useBoardStore = create<BoardState>()(
   devtools(
@@ -20,6 +33,8 @@ export const useBoardStore = create<BoardState>()(
         tasks: [],
         isModalOpen: false,
         taskToEdit: null,
+        isLoading: false,
+        fetchError: null,
         openCreateModal: () =>
           set(
             { isModalOpen: true, taskToEdit: null },
@@ -38,53 +53,81 @@ export const useBoardStore = create<BoardState>()(
             false,
             "task/closeModal",
           ),
-        addTask: (task) =>
+        addTask: async (task) => {
+          const position = get().tasks.filter(
+            (currentTask) => currentTask.status === task.status,
+          ).length;
+          const createdTask = await taskService.createTask({
+            ...task,
+            position,
+          });
           set(
             (state) => ({
-              tasks: [
-                ...state.tasks,
-                {
-                  id: Date.now().toString(),
-                  title: task.title,
-                  description: task.description,
-                  assignee: task.assignee,
-                  createdAt: new Date().toISOString(),
-                  dueDate: new Date().toISOString(),
-                  priority: task.priority,
-                  status: task.status,
-                },
-              ],
+              tasks: [...state.tasks, createdTask],
             }),
             false,
             "task/addTask",
-          ),
-        updateTask: (id, task) =>
+          );
+        },
+        updateTask: async (id, task) => {
+          const updatedTask = await taskService.updateTask(id, task);
           set(
             (state) => ({
-              tasks: state.tasks.map((t) =>
-                t.id === id
-                  ? {
-                      ...t,
-                      ...task,
-                    }
-                  : t,
+              tasks: state.tasks.map((currentTask) =>
+                currentTask.id === id ? updatedTask : currentTask,
               ),
             }),
             false,
-            "task/updateTask",
-          ),
-        moveTask: async (id, status, index) => {
-          const backup = JSON.parse(JSON.stringify(get().tasks));
-          set(
-            { tasks: renderTask(backup, id, index, status) },
-            false,
-            "task/update_optimistic",
+            "task/updateTask_success",
           );
+        },
+        moveTask: async (id, sourceStatus, desStatus, index) => {
+          const backup = get().tasks;
+          const updatedTasks = renderTask(backup, id, index, desStatus);
+          set({ tasks: updatedTasks }, false, "task/update_optimistic");
           try {
-            await taskService.updateTask(id, { status: status });
+            await taskService.updateStatus(
+              renderUpdateRequest(updatedTasks, sourceStatus, desStatus),
+            );
           } catch (err) {
             console.log(err);
             set({ tasks: backup }, false, "task/rollback");
+          }
+        },
+        fetchTasks: async () => {
+          set(
+            { isLoading: true, fetchError: null },
+            false,
+            "task/fetch_pending",
+          );
+          try {
+            const response = await taskService.getTask();
+            set(
+              { tasks: response, isLoading: false },
+              false,
+              "task/fetchTasks",
+            );
+          } catch (err) {
+            set(
+              { isLoading: false, fetchError: getErrorMessage(err) },
+              false,
+              "task/fetch_error",
+            );
+          }
+        },
+        deleteTask: async (id) => {
+          const backup = get().tasks;
+          set(
+            {
+              tasks: backup.filter((t) => t.id !== id),
+            },
+            false,
+            "task/delete_optimistic",
+          );
+          try {
+            await taskService.deleteTask(id);
+          } catch {
+            set({ tasks: backup }, false, "task/delete_rollback");
           }
         },
       }),
@@ -102,7 +145,7 @@ const renderTask = (
   if (!taskToMove) return;
 
   const remainingTasks = tasks.filter((task) => task.id !== id);
-  const movedTask = { ...taskToMove, status };
+  const movedTask = { ...taskToMove, status: status };
   let insertIndex = remainingTasks.length;
   let statusTaskCount = 0;
 
@@ -123,4 +166,33 @@ const renderTask = (
     movedTask,
     ...remainingTasks.slice(insertIndex),
   ];
+};
+const renderUpdateRequest = (
+  updatedTasks: Task[],
+  sourceStatus: TaskStatus,
+  desStatus: TaskStatus,
+): UpdateStatusRequest => {
+  const affectedStatuses =
+    sourceStatus === desStatus ? [sourceStatus] : [sourceStatus, desStatus];
+
+  return {
+    columns: affectedStatuses.map((status) => ({
+      status,
+      taskIds: updatedTasks
+        .filter((task) => task.status === status)
+        .map((task) => task.id),
+    })),
+  };
+};
+const getErrorMessage = (err: unknown): string => {
+  if (typeof err === "string") return err;
+  if (
+    err &&
+    typeof err === "object" &&
+    "message" in err &&
+    typeof err.message === "string"
+  ) {
+    return err.message;
+  }
+  return "Không thể tải danh sách task";
 };

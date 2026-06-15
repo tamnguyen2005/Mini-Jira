@@ -3,8 +3,12 @@ import type { TaskFormInput, TaskFormOutput } from "../schemas/task.schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { TaskSchema } from "../schemas/task.schema";
 import { useBoardStore } from "../stores/board.store";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { Task } from "../types/task.type";
+import {
+  AuthService,
+  type UserOption,
+} from "../services/auth.service";
 const autoReset = (reset: (task: Task) => void, t: Task | null) => {
   if (t) {
     reset({
@@ -27,6 +31,9 @@ const autoReset = (reset: (task: Task) => void, t: Task | null) => {
   }
 };
 export const TaskFormModal = () => {
+  const [users, setUsers] = useState<UserOption[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [userError, setUserError] = useState("");
   const { addTask, updateTask, closeModal, isModalOpen, taskToEdit } =
     useBoardStore();
   const {
@@ -42,10 +49,32 @@ export const TaskFormModal = () => {
   useEffect(() => {
     autoReset(reset, taskToEdit);
   }, [isModalOpen, taskToEdit, reset, closeModal]);
+
+  useEffect(() => {
+    if (!isModalOpen || users.length > 0) return;
+
+    const fetchUsers = async () => {
+      try {
+        setIsLoadingUsers(true);
+        setUserError("");
+        setUsers(await AuthService.getUsers());
+      } catch {
+        setUserError("Không thể tải danh sách người dùng");
+      } finally {
+        setIsLoadingUsers(false);
+      }
+    };
+
+    void fetchUsers();
+  }, [isModalOpen, users.length]);
+
   if (!isModalOpen) return;
   const onSubmit = (data: TaskFormOutput) => {
-    if (taskToEdit) updateTask(taskToEdit.id, data);
-    else addTask(data);
+    if (taskToEdit) {
+      updateTask(taskToEdit.id, data);
+    } else {
+      addTask(data);
+    }
     closeModal();
   };
   return (
@@ -120,16 +149,29 @@ export const TaskFormModal = () => {
               Người được giao
             </label>
             <select
-              disabled={isSubmitting}
+              disabled={isSubmitting || isLoadingUsers}
               {...register("assignee")}
               className="w-full border p-2 rounded text-sm"
             >
-              <option value="user_1">Nguyễn Minh Tâm</option>
-              <option value="user_2">Nguyễn Thị Bích Trâm</option>
-              <option value="user_3">Huỳnh Đăng Khoa</option>
-              <option value="user_4">Phạm Ngọc Khôi Nguyên</option>
-              <option value="user_5">Phạm Thị Hồng</option>
+              <option value="">
+                {isLoadingUsers
+                  ? "Đang tải người dùng..."
+                  : "Chọn người thực hiện"}
+              </option>
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name}
+                </option>
+              ))}
             </select>
+            {errors.assignee && (
+              <p className="text-red-500 text-xs mt-1">
+                {errors.assignee.message}
+              </p>
+            )}
+            {userError && (
+              <p className="text-red-500 text-xs mt-1">{userError}</p>
+            )}
           </div>
           <div>
             <label className="block text-xs font-bold uppercase text-gray-500 mb-1">

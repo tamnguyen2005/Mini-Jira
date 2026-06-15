@@ -5,6 +5,7 @@ import { useBoardStore } from "../stores/board.store";
 import { checkIsOverdue } from "../utils/date.util";
 import { PRIORITY_MAP } from "../constant/priority.constant";
 import { Draggable } from "@hello-pangea/dnd";
+import { Trash2 } from "lucide-react";
 interface TaskCardProps {
   task: Task;
   index: number;
@@ -19,6 +20,15 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, index }) => {
   const isOverDue = checkIsOverdue(task.dueDate, task.status);
   const priorityConfig = PRIORITY_MAP[task.priority];
   const openEditModal = useBoardStore((state) => state.openEditModal);
+  const deleteTask = useBoardStore((state) => state.deleteTask);
+  const handleDelete = async (id: string) => {
+    const isConfirmed = window.confirm(
+      "Hệ thống Jira: Bạn có chắc chắn muốn xóa nhiệm vụ này không?",
+    );
+    if (isConfirmed) {
+      await deleteTask(id);
+    }
+  };
   return (
     <Draggable draggableId={task.id} index={index}>
       {(provided, snapshot) => (
@@ -30,7 +40,23 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, index }) => {
           className={`bg-white p-4 rounded shadow-sm border-l-4 border-blue-500 hover:shadow-md transition-all cursor-grab active:cursor-grabbing flex flex-col gap-2 select-none ${isOverDue ? "ring-2 ring-red-500 bg-red-50/30" : ""} 
             ${snapshot.isDragging ? "shadow-xl ring-2 ring-blue-500 opacity-70" : ""}`}
         >
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              className="group/delete inline-flex size-8 items-center justify-center rounded-lg border border-red-100 bg-red-50 text-red-500 transition-colors hover:border-red-200 hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                void handleDelete(task.id);
+              }}
+              aria-label={`Xóa task ${task.title}`}
+              title="Xóa task"
+            >
+              <Trash2
+                className="size-4 transition-transform group-hover/delete:scale-110"
+                aria-hidden="true"
+              />
+            </button>
             <span
               className={`text-[10px] inline-block ${priorityConfig.badge} p-1`}
             >
