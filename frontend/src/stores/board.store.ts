@@ -4,16 +4,18 @@ import type { TaskFormOutput } from "../schemas/task.schema";
 import { create } from "zustand";
 import {
   taskService,
+  type QueryTaskRequest,
   type UpdateStatusRequest,
 } from "../services/task.service";
 interface BoardState {
   tasks: Task[];
+  totalTasks: number;
   isModalOpen: boolean;
   taskToEdit: Task | null;
   isLoading: boolean;
   fetchError: string | null;
   addTask: (task: TaskFormOutput) => Promise<void>;
-  updateTask: (id: string, task: TaskFormOutput) => Promise<void>;
+  updateTask: (id: string, task: Partial<TaskFormOutput>) => Promise<void>;
   moveTask: (
     id: string,
     sourceStatus: TaskStatus,
@@ -23,7 +25,7 @@ interface BoardState {
   openCreateModal: () => void;
   openEditModal: (task: Task) => void;
   closeModal: () => void;
-  fetchTasks: () => Promise<Task[]>;
+  fetchTasks: (query?: QueryTaskRequest) => Promise<Task[]>;
   deleteTask: (id: string) => Promise<void>;
 }
 export const useBoardStore = create<BoardState>()(
@@ -35,6 +37,7 @@ export const useBoardStore = create<BoardState>()(
         taskToEdit: null,
         isLoading: false,
         fetchError: null,
+        totalTasks: 0,
         openCreateModal: () =>
           set(
             { isModalOpen: true, taskToEdit: null },
@@ -94,25 +97,32 @@ export const useBoardStore = create<BoardState>()(
             set({ tasks: backup }, false, "task/rollback");
           }
         },
-        fetchTasks: async () => {
+        fetchTasks: async (query) => {
           set(
             { isLoading: true, fetchError: null },
             false,
             "task/fetch_pending",
           );
           try {
-            const response = await taskService.getTask();
+            const response = await taskService.getTask(query);
+            const tasks = Array.isArray(response.data) ? response.data : [];
             set(
-              { tasks: response, isLoading: false },
+              {
+                tasks,
+                isLoading: false,
+                totalTasks: response.pagination.total,
+              },
               false,
               "task/fetchTasks",
             );
+            return tasks;
           } catch (err) {
             set(
               { isLoading: false, fetchError: getErrorMessage(err) },
               false,
               "task/fetch_error",
             );
+            return [];
           }
         },
         deleteTask: async (id) => {
@@ -131,7 +141,25 @@ export const useBoardStore = create<BoardState>()(
           }
         },
       }),
-      { name: "board-storage" },
+      {
+        name: "board-storage",
+        version: 1,
+        migrate: (persistedState) => {
+          if (
+            persistedState &&
+            typeof persistedState === "object" &&
+            "tasks" in persistedState &&
+            !Array.isArray(persistedState.tasks)
+          ) {
+            return {
+              ...persistedState,
+              tasks: [],
+            };
+          }
+
+          return persistedState;
+        },
+      },
     ),
   ),
 );

@@ -1,14 +1,12 @@
 import { useForm } from "react-hook-form";
 import type { TaskFormInput, TaskFormOutput } from "../schemas/task.schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { TaskSchema } from "../schemas/task.schema";
+import { BaseTaskSchema, CreateTaskSchema } from "../schemas/task.schema";
 import { useBoardStore } from "../stores/board.store";
 import { useEffect, useState } from "react";
 import type { Task } from "../types/task.type";
-import {
-  AuthService,
-  type UserOption,
-} from "../services/auth.service";
+import { AuthService, type UserOption } from "../services/auth.service";
+import { isPastDate } from "../utils/date.util";
 const autoReset = (reset: (task: Task) => void, t: Task | null) => {
   if (t) {
     reset({
@@ -16,7 +14,7 @@ const autoReset = (reset: (task: Task) => void, t: Task | null) => {
       description: t.description,
       priority: t.priority,
       status: t.status,
-      assignee: t.assignee.id,
+      assigneeId: t.assignee.id,
       dueDate: t.dueDate.split("T")[0],
     });
   } else {
@@ -25,10 +23,23 @@ const autoReset = (reset: (task: Task) => void, t: Task | null) => {
       description: "",
       priority: "MEDIUM",
       status: "BACKLOG",
-      assignee: "",
+      assigneeId: "",
       dueDate: "",
     });
   }
+};
+const getDirtyTaskPayload = (
+  data: TaskFormOutput,
+  dirtyFields: Partial<Record<keyof TaskFormInput, boolean>>,
+): Partial<TaskFormOutput> => {
+  const payload: Partial<TaskFormOutput> = {};
+  if (dirtyFields.title) payload.title = data.title;
+  if (dirtyFields.description) payload.description = data.description;
+  if (dirtyFields.priority) payload.priority = data.priority;
+  if (dirtyFields.status) payload.status = data.status;
+  if (dirtyFields.assigneeId) payload.assigneeId = data.assigneeId;
+  if (dirtyFields.dueDate) payload.dueDate = data.dueDate;
+  return payload;
 };
 export const TaskFormModal = () => {
   const [users, setUsers] = useState<UserOption[]>([]);
@@ -40,9 +51,10 @@ export const TaskFormModal = () => {
     register,
     handleSubmit,
     reset,
-    formState: { isSubmitting, errors },
+    setError,
+    formState: { isSubmitting, errors, dirtyFields },
   } = useForm<TaskFormInput, unknown, TaskFormOutput>({
-    resolver: zodResolver(TaskSchema),
+    resolver: zodResolver(BaseTaskSchema),
     mode: "onTouched",
     defaultValues: { status: "BACKLOG", priority: "MEDIUM" },
   });
@@ -69,11 +81,34 @@ export const TaskFormModal = () => {
   }, [isModalOpen, users.length]);
 
   if (!isModalOpen) return;
-  const onSubmit = (data: TaskFormOutput) => {
+  const onSubmit = async (data: TaskFormOutput) => {
     if (taskToEdit) {
-      updateTask(taskToEdit.id, data);
+      if (dirtyFields.dueDate && isPastDate(data.dueDate)) {
+        setError("dueDate", {
+          type: "manual",
+          message: "Ngày hạn chót không được ở trong quá khứ",
+        });
+        return;
+      }
+      const payload = getDirtyTaskPayload(data, dirtyFields);
+
+      if (Object.keys(payload).length === 0) {
+        closeModal();
+        return;
+      }
+      await updateTask(taskToEdit.id, payload);
     } else {
-      addTask(data);
+      const createResult = CreateTaskSchema.safeParse(data);
+      if (!createResult.success) {
+        setError("dueDate", {
+          type: "manual",
+          message:
+            createResult.error.flatten().fieldErrors.dueDate?.[0] ??
+            "Ngày hạn chót không hợp lệ",
+        });
+        return;
+      }
+      await addTask(createResult.data);
     }
     closeModal();
   };
@@ -150,7 +185,7 @@ export const TaskFormModal = () => {
             </label>
             <select
               disabled={isSubmitting || isLoadingUsers}
-              {...register("assignee")}
+              {...register("assigneeId")}
               className="w-full border p-2 rounded text-sm"
             >
               <option value="">
@@ -158,15 +193,22 @@ export const TaskFormModal = () => {
                   ? "Đang tải người dùng..."
                   : "Chọn người thực hiện"}
               </option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name}
+              {taskToEdit && (
+                <option value={taskToEdit.assignee.id}>
+                  {taskToEdit.assignee.name}
                 </option>
-              ))}
+              )}
+              {users
+                .filter((user) => user.id !== taskToEdit?.assignee.id)
+                .map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name}
+                  </option>
+                ))}
             </select>
-            {errors.assignee && (
+            {errors.assigneeId && (
               <p className="text-red-500 text-xs mt-1">
-                {errors.assignee.message}
+                {errors.assigneeId.message}
               </p>
             )}
             {userError && (

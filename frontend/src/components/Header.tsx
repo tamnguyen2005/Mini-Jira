@@ -7,26 +7,30 @@ export const Header = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const buttonClassName =
+    "inline-flex h-9 items-center justify-center rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:px-4 sm:text-sm";
+
   return (
-    <header className="sticky top-0">
-      <div className="flex justify-between p-6">
-        <h1 className="text-2xl font-bold text-slate-800">
+    <header className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur">
+      <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <h1 className="shrink-0 text-xl font-bold text-slate-800 sm:text-2xl">
           Mini Jira Dashboard
         </h1>
-        <div className="flex gap-2.5">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
           {isAuthenticated ? (
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
               <img
-                className="size-7 rounded-full object-cover ring-2 ring-slate-200"
+                className="size-8 shrink-0 rounded-full object-cover ring-2 ring-slate-200"
                 src={user?.avatar_url}
                 alt="User Avatar"
               />
-              <span className="pb-0.5 leading-none text-slate-700">
+              <span className="min-w-0 truncate pb-0.5 text-sm leading-none text-slate-700">
                 {user?.name}
               </span>
               <button
+                type="button"
                 onClick={logout}
-                className="inline-flex items-center justify-center rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className={buttonClassName}
               >
                 Logout
               </button>
@@ -34,14 +38,15 @@ export const Header = () => {
           ) : (
             <Link
               to="/login"
-              className="inline-flex items-center justify-center rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+              className={buttonClassName}
             >
               Login
             </Link>
           )}
           <button
+            type="button"
             onClick={openCreateModal}
-            className="inline-flex items-center justify-center rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            className={`${buttonClassName} flex-1 whitespace-nowrap sm:flex-none`}
           >
             Create task
           </button>

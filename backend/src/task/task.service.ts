@@ -10,6 +10,8 @@ import { Repository } from 'typeorm';
 import { ResponseTaskDto } from './dto/response-task.dto';
 import { AuthService } from 'src/auth/auth.service';
 import { UpdateTaskDto, UpdateTaskStatusDto } from './dto/update-task.dto';
+import { QueryTaskDto } from './dto/query-task.dto';
+import { PaginatedResult } from 'src/common/interfaces/paginated-result.interface';
 
 @Injectable()
 export class TaskService {
@@ -46,16 +48,66 @@ export class TaskService {
     );
     return response;
   }
-  async findAll(): Promise<ResponseTaskDto[]> {
-    const tasks = await this.taskRepository
+  async findAll(
+    queryTaskDto: QueryTaskDto,
+  ): Promise<PaginatedResult<ResponseTaskDto>> {
+    const queryBuilder = this.taskRepository
       .createQueryBuilder('task')
       .leftJoinAndSelect('task.assignee', 'assignee')
-      .select(['task', 'assignee.id', 'assignee.name'])
+      .select(['task', 'assignee.id', 'assignee.name']);
+
+    if (queryTaskDto.title) {
+      queryBuilder.andWhere('task.title ILIKE :title', {
+        title: `%${queryTaskDto.title}%`,
+      });
+    }
+
+    if (queryTaskDto.assigneeId) {
+      queryBuilder.andWhere('task.assigneeId = :assigneeId', {
+        assigneeId: queryTaskDto.assigneeId,
+      });
+    }
+
+    if (queryTaskDto.priority?.length) {
+      queryBuilder.andWhere('task.priority IN (:...priorities)', {
+        priorities: queryTaskDto.priority,
+      });
+    }
+
+    if (queryTaskDto.dueFrom) {
+      const startOfDay = new Date(`${queryTaskDto.dueFrom}T00:00:00+07:00`);
+
+      queryBuilder.andWhere('task.due_date >= :dueFrom', {
+        dueFrom: startOfDay,
+      });
+    }
+    if (queryTaskDto.dueTo) {
+      const endOfDay = new Date(`${queryTaskDto.dueTo}T00:00:00+07:00`);
+      endOfDay.setDate(endOfDay.getDate() + 1);
+
+      queryBuilder.andWhere('task.due_date < :dueTo', {
+        dueTo: endOfDay,
+      });
+    }
+
+    const page = queryTaskDto.page;
+    const limit = queryTaskDto.limit;
+    queryBuilder
       .orderBy('task.status', 'ASC')
       .addOrderBy('task.position', 'ASC')
-      .getMany();
-
-    return tasks.map((t) => this.responseConverter(t));
+      .skip((page - 1) * limit)
+      .take(limit);
+    const [tasks, total] = await queryBuilder.getManyAndCount();
+    const data = tasks.map((t) => this.responseConverter(t));
+    return {
+      data: data,
+      pagination: {
+        limit: limit,
+        page: page,
+        total: total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
   async findOne(id: string): Promise<Task> {
     const task = await this.taskRepository

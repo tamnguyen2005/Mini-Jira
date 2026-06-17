@@ -7,7 +7,10 @@ export type CreateTaskRequest = TaskFormOutput & {
 };
 
 export const taskService = {
-  updateTask: async (id: string, task: TaskFormOutput): Promise<Task> => {
+  updateTask: async (
+    id: string,
+    task: Partial<TaskFormOutput>,
+  ): Promise<Task> => {
     return api.put(`/task/${id}`, task);
   },
   updateStatus: async (updateStatus: UpdateStatusRequest): Promise<void> => {
@@ -16,8 +19,10 @@ export const taskService = {
   createTask: async (task: CreateTaskRequest): Promise<Task> => {
     return api.post("/task", task);
   },
-  getTask: async (): Promise<Task[]> => {
-    return api.get("/task");
+  getTask: async (query?: QueryTaskRequest): Promise<PaginatedResult<Task>> => {
+    return api.get("/task", {
+      params: query,
+    });
   },
   deleteTask: async (id: string): Promise<void> => {
     return api.delete(`/task/${id}`);
@@ -29,4 +34,23 @@ export interface UpdateStatusRequest {
 export interface Column {
   status: TaskStatus;
   taskIds: string[];
+}
+export interface QueryTaskRequest {
+  title?: string;
+  assigneeId?: string;
+  priority?: string;
+  dueFrom?: string;
+  dueTo?: string;
+  page?: number;
+  limit?: number;
+}
+export class PaginationMeta {
+  total!: number;
+  page!: number;
+  limit!: number;
+  totalPages!: number;
+}
+export class PaginatedResult<T> {
+  data!: T[];
+  pagination!: PaginationMeta;
 }
