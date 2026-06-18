@@ -1,7 +1,6 @@
 import { CheckCircle2, Kanban, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-
 interface AuthLayoutProps {
   eyebrow: string;
   title: string;

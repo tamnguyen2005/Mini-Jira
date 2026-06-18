@@ -7,6 +7,7 @@ import {
   type QueryTaskRequest,
   type UpdateStatusRequest,
 } from "../services/task.service";
+import { toast } from "react-hot-toast";
 interface BoardState {
   tasks: Task[];
   totalTasks: number;
@@ -60,29 +61,43 @@ export const useBoardStore = create<BoardState>()(
           const position = get().tasks.filter(
             (currentTask) => currentTask.status === task.status,
           ).length;
-          const createdTask = await taskService.createTask({
-            ...task,
-            position,
-          });
-          set(
-            (state) => ({
-              tasks: [...state.tasks, createdTask],
-            }),
-            false,
-            "task/addTask",
-          );
+
+          try {
+            const createdTask = await taskService.createTask({
+              ...task,
+              position,
+            });
+
+            set(
+              (state) => ({
+                tasks: [...state.tasks, createdTask],
+              }),
+              false,
+              "task/addTask_success",
+            );
+            toast.success("Tạo task mới thành công");
+          } catch (err) {
+            toast.error("Tạo task thất bại");
+            throw err;
+          }
         },
         updateTask: async (id, task) => {
-          const updatedTask = await taskService.updateTask(id, task);
-          set(
-            (state) => ({
-              tasks: state.tasks.map((currentTask) =>
-                currentTask.id === id ? updatedTask : currentTask,
-              ),
-            }),
-            false,
-            "task/updateTask_success",
-          );
+          try {
+            const updatedTask = await taskService.updateTask(id, task);
+            set(
+              (state) => ({
+                tasks: state.tasks.map((currentTask) =>
+                  currentTask.id === id ? updatedTask : currentTask,
+                ),
+              }),
+              false,
+              "task/updateTask_success",
+            );
+            toast.success("Cập nhật task thành công");
+          } catch (err) {
+            toast.error("Cập nhật task thất bại");
+            throw err;
+          }
         },
         moveTask: async (id, sourceStatus, desStatus, index) => {
           const backup = get().tasks;
@@ -95,6 +110,7 @@ export const useBoardStore = create<BoardState>()(
           } catch (err) {
             console.log(err);
             set({ tasks: backup }, false, "task/rollback");
+            toast.error("Di chuyển task thất bại. Đã hoàn tác vị trí.");
           }
         },
         fetchTasks: async (query) => {
@@ -122,6 +138,7 @@ export const useBoardStore = create<BoardState>()(
               false,
               "task/fetch_error",
             );
+            toast.error("Lấy dữ liệu từ server thất bại");
             return [];
           }
         },
@@ -136,8 +153,10 @@ export const useBoardStore = create<BoardState>()(
           );
           try {
             await taskService.deleteTask(id);
+            toast.success("Xóa task thành công");
           } catch {
             set({ tasks: backup }, false, "task/delete_rollback");
+            toast.error("Xóa task thất bại");
           }
         },
       }),
@@ -170,7 +189,7 @@ const renderTask = (
   status: TaskStatus,
 ): Task[] => {
   const taskToMove = tasks.find((task) => task.id === id);
-  if (!taskToMove) return;
+  if (!taskToMove) return tasks;
 
   const remainingTasks = tasks.filter((task) => task.id !== id);
   const movedTask = { ...taskToMove, status: status };

@@ -46,6 +46,8 @@ export const Header = () => {
           <button
             type="button"
             onClick={openCreateModal}
+            aria-label="Tạo task mới bằng Alt+N"
+            title="Tạo task mới (Alt+N)"
             className={`${buttonClassName} flex-1 whitespace-nowrap sm:flex-none`}
           >
             Create task

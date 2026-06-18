@@ -2,12 +2,13 @@ import { useBoardStore } from "../stores/board.store";
 import { BoardColumn } from "../components/BoardColumn";
 import type { TaskStatus } from "../types/task.type";
 import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { BoardColumnSkeleton } from "../components/BoardColumnSkeleton";
 import { boardColumnSkeleton } from "../constant/skeleton.constant";
 import { FilterToolBar } from "../components/FilterToolBar";
 import { useSearchParams } from "react-router-dom";
 export const Home = () => {
+  const [showSkeleton, setShowSkeleton] = useState(false);
   const tasks = useBoardStore((state) => state.tasks);
   const moveTask = useBoardStore((state) => state.moveTask);
   const fetchTasks = useBoardStore((state) => state.fetchTasks);
@@ -35,6 +36,16 @@ export const Home = () => {
       dueTo: dueToUrl || undefined,
     });
   }, [fetchTasks, titleUrl, priorityUrl, assigneeIdUrl, dueFromUrl, dueToUrl]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(
+      () => setShowSkeleton(isLoading),
+      isLoading ? 200 : 0,
+    );
+
+    return () => window.clearTimeout(timer);
+  }, [isLoading]);
+
   const isBoardEmpty = tasks.length === 0;
   const onDragEnd = (result: DropResult) => {
     const { source, destination, draggableId } = result;
@@ -63,7 +74,7 @@ export const Home = () => {
             vụ phù hợp với bộ lọc.
           </p>
         )}
-        {isLoading ? (
+        {showSkeleton ? (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
             {Array.from({ length: boardColumnSkeleton }).map((_, index) => (
               <BoardColumnSkeleton key={index} />

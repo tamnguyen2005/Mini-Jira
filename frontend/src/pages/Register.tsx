@@ -52,7 +52,7 @@ export const Register = () => {
         email: data.email,
         name: data.name,
         password: data.password,
-        avatar_url: data.avatar_url || undefined,
+        avatar_url: data.avatar_url,
       });
       navigate("/login?registered=true", { replace: true });
     } catch (error) {

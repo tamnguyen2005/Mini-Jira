@@ -1,13 +1,17 @@
-import { useForm } from "react-hook-form";
+import { useForm, type UseFormReset } from "react-hook-form";
 import type { TaskFormInput, TaskFormOutput } from "../schemas/task.schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { BaseTaskSchema, CreateTaskSchema } from "../schemas/task.schema";
 import { useBoardStore } from "../stores/board.store";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Task } from "../types/task.type";
 import { AuthService, type UserOption } from "../services/auth.service";
 import { isPastDate } from "../utils/date.util";
-const autoReset = (reset: (task: Task) => void, t: Task | null) => {
+
+const FOCUSABLE_SELECTOR =
+  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+const autoReset = (reset: UseFormReset<TaskFormInput>, t: Task | null) => {
   if (t) {
     reset({
       title: t.title,
@@ -52,15 +56,82 @@ export const TaskFormModal = () => {
     handleSubmit,
     reset,
     setError,
-    formState: { isSubmitting, errors, dirtyFields },
+    setFocus,
+    formState: { isSubmitting, errors, dirtyFields, isDirty },
   } = useForm<TaskFormInput, unknown, TaskFormOutput>({
     resolver: zodResolver(BaseTaskSchema),
     mode: "onTouched",
     defaultValues: { status: "BACKLOG", priority: "MEDIUM" },
   });
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     autoReset(reset, taskToEdit);
-  }, [isModalOpen, taskToEdit, reset, closeModal]);
+  }, [isModalOpen, taskToEdit, reset]);
+
+  const requestClose = useCallback(() => {
+    if (
+      isDirty &&
+      !window.confirm("Bạn có thay đổi chưa lưu. Bạn vẫn muốn đóng form?")
+    ) {
+      return;
+    }
+
+    closeModal();
+  }, [closeModal, isDirty]);
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+
+    previouslyFocusedElementRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+
+    const focusTimer = window.setTimeout(() => setFocus("title"), 0);
+
+    return () => {
+      window.clearTimeout(focusTimer);
+      previouslyFocusedElementRef.current?.focus();
+    };
+  }, [isModalOpen, setFocus]);
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        requestClose();
+        return;
+      }
+
+      if (event.key !== "Tab" || !modalRef.current) return;
+
+      const focusableElements = Array.from(
+        modalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      ).filter((element) => !element.hasAttribute("disabled"));
+
+      if (focusableElements.length === 0) return;
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      }
+
+      if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isModalOpen, requestClose]);
 
   useEffect(() => {
     if (!isModalOpen || users.length > 0) return;
@@ -80,7 +151,7 @@ export const TaskFormModal = () => {
     void fetchUsers();
   }, [isModalOpen, users.length]);
 
-  if (!isModalOpen) return;
+  if (!isModalOpen) return null;
   const onSubmit = async (data: TaskFormOutput) => {
     if (taskToEdit) {
       if (dirtyFields.dueDate && isPastDate(data.dueDate)) {
@@ -96,7 +167,11 @@ export const TaskFormModal = () => {
         closeModal();
         return;
       }
-      await updateTask(taskToEdit.id, payload);
+      try {
+        await updateTask(taskToEdit.id, payload);
+      } catch {
+        return;
+      }
     } else {
       const createResult = CreateTaskSchema.safeParse(data);
       if (!createResult.success) {
@@ -108,25 +183,55 @@ export const TaskFormModal = () => {
         });
         return;
       }
-      await addTask(createResult.data);
+      try {
+        await addTask(createResult.data);
+      } catch {
+        return;
+      }
     }
     closeModal();
   };
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-150">
-        <h2 className="text-lg font-bold text-gray-900 mb-4">
+    <div
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          requestClose();
+        }
+      }}
+    >
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="task-form-title"
+        aria-describedby="task-form-description"
+        className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-150"
+      >
+        <h2
+          id="task-form-title"
+          className="text-lg font-bold text-gray-900 mb-1"
+        >
           {taskToEdit ? "✏️ Cập nhật Nhiệm vụ" : "➕ Tạo Nhiệm vụ Mới"}
         </h2>
+        <p id="task-form-description" className="mb-4 text-xs text-gray-500">
+          Điền thông tin nhiệm vụ. Nhấn Esc để đóng hoặc Alt+N để mở form tạo
+          mới.
+        </p>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
           <div>
-            <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+            <label
+              htmlFor="task-title"
+              className="block text-xs font-bold uppercase text-gray-500 mb-1"
+            >
               Tiêu đề *
             </label>
             <input
+              id="task-title"
               {...register("title")}
               disabled={isSubmitting}
+              aria-invalid={errors.title ? "true" : "false"}
               className="w-full border p-2 rounded text-sm focus:ring-2 focus:ring-blue-500"
             />
             {errors.title && (
@@ -136,12 +241,17 @@ export const TaskFormModal = () => {
             )}
           </div>
           <div>
-            <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+            <label
+              htmlFor="task-description"
+              className="block text-xs font-bold uppercase text-gray-500 mb-1"
+            >
               Mô tả *
             </label>
             <input
+              id="task-description"
               {...register("description")}
               disabled={isSubmitting}
+              aria-invalid={errors.description ? "true" : "false"}
               className="w-full border p-2 rounded text-sm focus:ring-2 focus:ring-blue-500"
             />
             {errors.description && (
@@ -151,10 +261,14 @@ export const TaskFormModal = () => {
             )}
           </div>
           <div>
-            <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+            <label
+              htmlFor="task-priority"
+              className="block text-xs font-bold uppercase text-gray-500 mb-1"
+            >
               Độ ưu tiên
             </label>
             <select
+              id="task-priority"
               disabled={isSubmitting}
               {...register("priority")}
               className="w-full border p-2 rounded text-sm"
@@ -165,10 +279,14 @@ export const TaskFormModal = () => {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+            <label
+              htmlFor="task-status"
+              className="block text-xs font-bold uppercase text-gray-500 mb-1"
+            >
               Trạng thái
             </label>
             <select
+              id="task-status"
               disabled={isSubmitting}
               {...register("status")}
               className="w-full border p-2 rounded text-sm"
@@ -180,12 +298,17 @@ export const TaskFormModal = () => {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+            <label
+              htmlFor="task-assignee"
+              className="block text-xs font-bold uppercase text-gray-500 mb-1"
+            >
               Người được giao
             </label>
             <select
+              id="task-assignee"
               disabled={isSubmitting || isLoadingUsers}
               {...register("assigneeId")}
+              aria-invalid={errors.assigneeId ? "true" : "false"}
               className="w-full border p-2 rounded text-sm"
             >
               <option value="">
@@ -216,13 +339,18 @@ export const TaskFormModal = () => {
             )}
           </div>
           <div>
-            <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+            <label
+              htmlFor="task-due-date"
+              className="block text-xs font-bold uppercase text-gray-500 mb-1"
+            >
               Hạn chót *
             </label>
             <input
+              id="task-due-date"
               disabled={isSubmitting}
               type="date"
               {...register("dueDate")}
+              aria-invalid={errors.dueDate ? "true" : "false"}
               className="w-full border p-2 rounded text-sm"
             />
             {errors.dueDate && (
@@ -234,7 +362,8 @@ export const TaskFormModal = () => {
           <div className="flex justify-end gap-2 mt-2">
             <button
               type="button"
-              onClick={closeModal}
+              onClick={requestClose}
+              aria-label="Đóng form nhiệm vụ"
               className="px-4 py-2 border text-gray-600 rounded text-sm hover:bg-gray-50"
             >
               Hủy

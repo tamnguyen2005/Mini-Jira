@@ -18,4 +18,4 @@ export const CreateTaskSchema = BaseTaskSchema.refine(
   },
 );
 export type TaskFormInput = z.infer<typeof BaseTaskSchema>;
-export type TaskFormOutput = z.infer<typeof UpdateTaskSchema>;
+export type TaskFormOutput = z.infer<typeof BaseTaskSchema>;
