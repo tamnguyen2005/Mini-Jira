@@ -25,6 +25,7 @@ export class TaskController {
 
   @Post()
   @UseGuards(AuthGuard)
+  @HttpCode(201)
   async create(
     @Body() createTaskDto: CreateTaskDto,
     @Req() request: AuthenticatedRequest,
@@ -33,15 +34,22 @@ export class TaskController {
     return await this.taskService.create(create_byId, createTaskDto);
   }
   @Get()
+  @HttpCode(200)
   async get(@Query() queryTaskDto: QueryTaskDto) {
     return await this.taskService.findAll(queryTaskDto);
   }
+  @Get(':id')
+  @HttpCode(200)
+  async getById(@Param('id') id: string) {
+    return await this.taskService.findById(id);
+  }
   @Patch('status')
-  @HttpCode(204)
+  @HttpCode(200)
   async updateStatus(@Body() updateStatusDto: UpdateTaskStatusDto) {
     await this.taskService.updateStatus(updateStatusDto);
   }
   @Put(':id')
+  @HttpCode(200)
   async update(@Param('id') id: string, @Body() updateDto: UpdateTaskDto) {
     return await this.taskService.updateAll(id, updateDto);
   }

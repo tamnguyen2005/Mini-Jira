@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo, useCallback, useMemo } from "react";
 import type { Task } from "../types/task.type";
 import { DATE_LOCALE, DATE_TIME_ZONE } from "../constant/time.constant";
 import { useBoardStore } from "../stores/board.store";
@@ -10,25 +10,44 @@ interface TaskCardProps {
   task: Task;
   index: number;
 }
-export const TaskCard: React.FC<TaskCardProps> = ({ task, index }) => {
-  const createdDate = new Date(task.createdAt).toLocaleString(DATE_LOCALE, {
-    timeZone: DATE_TIME_ZONE,
-  });
-  const dueDate = new Date(task.dueDate).toLocaleString(DATE_LOCALE, {
-    timeZone: DATE_TIME_ZONE,
-  });
-  const isOverDue = checkIsOverdue(task.dueDate, task.status);
+const TaskCardComponent: React.FC<TaskCardProps> = ({ task, index }) => {
+  const createdDate = useMemo(
+    () =>
+      new Date(task.createdAt).toLocaleString(DATE_LOCALE, {
+        timeZone: DATE_TIME_ZONE,
+      }),
+    [task.createdAt],
+  );
+  const dueDate = useMemo(
+    () =>
+      new Date(task.dueDate).toLocaleString(DATE_LOCALE, {
+        timeZone: DATE_TIME_ZONE,
+      }),
+    [task.dueDate],
+  );
+  const isOverDue = useMemo(
+    () => checkIsOverdue(task.dueDate, task.status),
+    [task.dueDate, task.status],
+  );
   const priorityConfig = PRIORITY_MAP[task.priority];
   const openEditModal = useBoardStore((state) => state.openEditModal);
   const deleteTask = useBoardStore((state) => state.deleteTask);
-  const handleDelete = async (id: string) => {
-    const isConfirmed = window.confirm(
-      "Hệ thống Jira: Bạn có chắc chắn muốn xóa nhiệm vụ này không?",
-    );
-    if (isConfirmed) {
-      await deleteTask(id);
-    }
-  };
+  const openEdit = useCallback(
+    () => openEditModal(task),
+    [openEditModal, task],
+  );
+  const handleDelete = useCallback(
+    async (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+      const isConfirmed = window.confirm(
+        "Hệ thống Jira: Bạn có chắc chắn muốn xóa nhiệm vụ này không?",
+      );
+      if (isConfirmed) {
+        await deleteTask(task.id);
+      }
+    },
+    [deleteTask, task.id],
+  );
   return (
     <Draggable draggableId={task.id} index={index}>
       {(provided, snapshot) => (
@@ -36,7 +55,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, index }) => {
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          onClick={() => openEditModal(task)}
+          onClick={openEdit}
           className={`bg-white p-4 rounded shadow-sm border-l-4 border-blue-500 hover:shadow-md transition-all cursor-grab active:cursor-grabbing flex flex-col gap-2 select-none ${isOverDue ? "ring-2 ring-red-500 bg-red-50/30" : ""} 
             ${snapshot.isDragging ? "shadow-xl ring-2 ring-blue-500 opacity-70" : ""}`}
         >
@@ -45,10 +64,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, index }) => {
               type="button"
               className="group/delete inline-flex size-8 items-center justify-center rounded-lg border border-red-100 bg-red-50 text-red-500 transition-colors hover:border-red-200 hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2"
               onPointerDown={(event) => event.stopPropagation()}
-              onClick={(event) => {
-                event.stopPropagation();
-                void handleDelete(task.id);
-              }}
+              onClick={handleDelete}
               aria-label={`Xóa task ${task.title}`}
               title="Xóa task"
             >
@@ -88,3 +104,6 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, index }) => {
     </Draggable>
   );
 };
+
+export const TaskCard = memo(TaskCardComponent);
+TaskCard.displayName = "TaskCard";

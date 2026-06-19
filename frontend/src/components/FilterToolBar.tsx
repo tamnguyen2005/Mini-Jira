@@ -1,23 +1,29 @@
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useDebounce } from "../hooks/useDebounce";
 import type { TaskPriority } from "../types/task.type";
 import { AuthService, type UserOption } from "../services/auth.service";
+import { QUERY_PARAMS } from "../constant/app.constants";
 
 export const FilterToolBar: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [searchTerm, setSearchTerm] = useState(searchParams.get("title") || "");
+  const [searchTerm, setSearchTerm] = useState(
+    searchParams.get(QUERY_PARAMS.title) || "",
+  );
   const debounceSearch = useDebounce(searchTerm);
   const [users, setUsers] = useState<UserOption[]>([]);
-  const currentPriorities =
-    searchParams.get("priority")?.split(",").filter(Boolean) || [];
+  const currentPriorities = useMemo(
+    () =>
+      searchParams.get(QUERY_PARAMS.priority)?.split(",").filter(Boolean) || [],
+    [searchParams],
+  );
   useEffect(() => {
     const param = new URLSearchParams(searchParams);
     if (debounceSearch) {
-      param.set("title", debounceSearch);
+      param.set(QUERY_PARAMS.title, debounceSearch);
     } else {
-      param.delete("title");
+      param.delete(QUERY_PARAMS.title);
     }
     if (param.toString() === searchParams.toString()) return;
     setSearchParams(param);
@@ -88,13 +94,13 @@ export const FilterToolBar: React.FC = () => {
           })}
         </div>
         <select
-          value={searchParams.get("assigneeId") || ""}
+          value={searchParams.get(QUERY_PARAMS.assigneeId) || ""}
           onChange={(e) => {
             const param = new URLSearchParams(searchParams);
             if (e.target.value) {
-              param.set("assigneeId", e.target.value);
+              param.set(QUERY_PARAMS.assigneeId, e.target.value);
             } else {
-              param.delete("assigneeId");
+              param.delete(QUERY_PARAMS.assigneeId);
             }
             setSearchParams(param);
           }}
@@ -109,30 +115,30 @@ export const FilterToolBar: React.FC = () => {
         </select>
         <input
           type="date"
-          value={searchParams.get("dueFrom") || ""}
-          max={searchParams.get("dueTo") || undefined}
+          value={searchParams.get(QUERY_PARAMS.dueFrom) || ""}
+          max={searchParams.get(QUERY_PARAMS.dueTo) || undefined}
           className="border p-2 rounded text-sm"
           onChange={(e) => {
             const param = new URLSearchParams(searchParams);
             if (e.target.value) {
-              param.set("dueFrom", e.target.value);
+              param.set(QUERY_PARAMS.dueFrom, e.target.value);
             } else {
-              param.delete("dueFrom");
+              param.delete(QUERY_PARAMS.dueFrom);
             }
             setSearchParams(param);
           }}
         />
         <input
           type="date"
-          value={searchParams.get("dueTo") || ""}
-          min={searchParams.get("dueFrom") || undefined}
+          value={searchParams.get(QUERY_PARAMS.dueTo) || ""}
+          min={searchParams.get(QUERY_PARAMS.dueFrom) || undefined}
           className="border p-2 rounded text-sm"
           onChange={(e) => {
             const param = new URLSearchParams(searchParams);
             if (e.target.value) {
-              param.set("dueTo", e.target.value);
+              param.set(QUERY_PARAMS.dueTo, e.target.value);
             } else {
-              param.delete("dueTo");
+              param.delete(QUERY_PARAMS.dueTo);
             }
             setSearchParams(param);
           }}

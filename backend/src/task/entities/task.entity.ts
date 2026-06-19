@@ -8,6 +8,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
+  Index,
 } from 'typeorm';
 export enum TaskStatus {
   BACKLOG = 'BACKLOG',
@@ -23,6 +24,10 @@ export enum TaskPriority {
 }
 
 @Entity('task')
+@Index('idx_task_assignee_id', ['assigneeId'])
+@Index('idx_task_priority', ['priority'])
+@Index('idx_task_due_date', ['due_date'])
+@Index('idx_task_status', ['status'])
 export class Task {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

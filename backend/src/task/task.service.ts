@@ -63,7 +63,7 @@ export class TaskService {
     }
 
     if (queryTaskDto.assigneeId) {
-      queryBuilder.andWhere('task.assigneeId = :assigneeId', {
+      queryBuilder.andWhere('assignee.id = :assigneeId', {
         assigneeId: queryTaskDto.assigneeId,
       });
     }
@@ -108,6 +108,9 @@ export class TaskService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+  async findById(id: string): Promise<ResponseTaskDto> {
+    return this.responseConverter(await this.findOne(id));
   }
   async findOne(id: string): Promise<Task> {
     const task = await this.taskRepository

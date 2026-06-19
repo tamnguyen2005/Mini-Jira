@@ -1,12 +1,13 @@
 import { useBoardStore } from "../stores/board.store";
 import { BoardColumn } from "../components/BoardColumn";
-import type { TaskStatus } from "../types/task.type";
+import type { Task, TaskStatus } from "../types/task.type";
 import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BoardColumnSkeleton } from "../components/BoardColumnSkeleton";
 import { boardColumnSkeleton } from "../constant/skeleton.constant";
 import { FilterToolBar } from "../components/FilterToolBar";
 import { useSearchParams } from "react-router-dom";
+import { TASK_COLUMNS } from "../constant/board.constant";
 export const Home = () => {
   const [showSkeleton, setShowSkeleton] = useState(false);
   const tasks = useBoardStore((state) => state.tasks);
@@ -15,13 +16,23 @@ export const Home = () => {
   const isLoading = useBoardStore((state) => state.isLoading);
   const fetchError = useBoardStore((state) => state.fetchError);
   const totalTasks = useBoardStore((state) => state.totalTasks);
-  const columns: { title: string; status: TaskStatus }[] = [
-    { title: "📋 Backlog", status: "BACKLOG" },
-    { title: "🎯 To Do", status: "TODO" },
-    { title: "⏳ In Progress", status: "IN_PROGRESS" },
-    { title: "✅ Done", status: "DONE" },
-  ];
   const [searchParams] = useSearchParams();
+  const tasksByStatus = useMemo(
+    () =>
+      tasks.reduce(
+        (acc, task) => {
+          acc[task.status].push(task);
+          return acc;
+        },
+        {
+          BACKLOG: [] as Task[],
+          TODO: [] as Task[],
+          IN_PROGRESS: [] as Task[],
+          DONE: [] as Task[],
+        },
+      ),
+    [tasks],
+  );
   const titleUrl = searchParams.get("title") || "";
   const assigneeIdUrl = searchParams.get("assigneeId") || "";
   const priorityUrl = searchParams.get("priority") || "";
@@ -47,22 +58,25 @@ export const Home = () => {
   }, [isLoading]);
 
   const isBoardEmpty = tasks.length === 0;
-  const onDragEnd = (result: DropResult) => {
-    const { source, destination, draggableId } = result;
-    if (!destination) return;
-    if (
-      source.droppableId === destination.droppableId &&
-      source.index === destination.index
-    ) {
-      return;
-    }
-    moveTask(
-      draggableId,
-      source.droppableId as TaskStatus,
-      destination.droppableId as TaskStatus,
-      destination.index,
-    );
-  };
+  const onDragEnd = useCallback(
+    (result: DropResult) => {
+      const { source, destination, draggableId } = result;
+      if (!destination) return;
+      if (
+        source.droppableId === destination.droppableId &&
+        source.index === destination.index
+      ) {
+        return;
+      }
+      moveTask(
+        draggableId,
+        source.droppableId as TaskStatus,
+        destination.droppableId as TaskStatus,
+        destination.index,
+      );
+    },
+    [moveTask],
+  );
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="min-h-screen bg-slate-50 p-6">
@@ -99,17 +113,14 @@ export const Home = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
-            {columns.map((col) => {
-              const columnTasks = tasks.filter((t) => t.status === col.status);
-              return (
-                <BoardColumn
-                  key={col.status}
-                  title={col.title}
-                  status={col.status}
-                  tasks={columnTasks}
-                />
-              );
-            })}
+            {TASK_COLUMNS.map((col) => (
+              <BoardColumn
+                key={col.status}
+                title={col.title}
+                status={col.status}
+                tasks={tasksByStatus[col.status]}
+              />
+            ))}
           </div>
         )}
       </div>

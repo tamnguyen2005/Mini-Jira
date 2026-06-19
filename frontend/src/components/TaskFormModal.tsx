@@ -49,8 +49,11 @@ export const TaskFormModal = () => {
   const [users, setUsers] = useState<UserOption[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [userError, setUserError] = useState("");
-  const { addTask, updateTask, closeModal, isModalOpen, taskToEdit } =
-    useBoardStore();
+  const addTask = useBoardStore((state) => state.addTask);
+  const updateTask = useBoardStore((state) => state.updateTask);
+  const closeModal = useBoardStore((state) => state.closeModal);
+  const isModalOpen = useBoardStore((state) => state.isModalOpen);
+  const taskToEdit = useBoardStore((state) => state.taskToEdit);
   const {
     register,
     handleSubmit,

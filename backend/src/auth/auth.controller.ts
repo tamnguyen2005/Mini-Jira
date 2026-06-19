@@ -22,6 +22,7 @@ export class AuthController {
   }
 
   @Post('register')
+  @HttpCode(201)
   async register(@Body() request: RegisterDTO): Promise<{ message: string }> {
     return this.authService.register(request);
   }

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import type { Task, TaskStatus } from "../types/task.type";
 import { TaskCard } from "./TaskCard";
 import { Droppable } from "@hello-pangea/dnd";
@@ -9,7 +9,7 @@ interface BoardColumnProps {
   tasks: Task[];
 }
 
-export const BoardColumn: React.FC<BoardColumnProps> = ({
+const BoardColumnComponent: React.FC<BoardColumnProps> = ({
   title,
   status,
   tasks,
@@ -50,3 +50,6 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
     </div>
   );
 };
+
+export const BoardColumn = memo(BoardColumnComponent);
+BoardColumn.displayName = "BoardColumn";
