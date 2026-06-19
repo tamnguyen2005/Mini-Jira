@@ -17,6 +17,7 @@ import {
 } from "../schemas/register.schema";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthService } from "../services/auth.service";
+import { ROUTES } from "../constant/app.constants";
 
 const getErrorMessage = (error: unknown) => {
   if (typeof error === "string") return error;
@@ -54,7 +55,7 @@ export const Register = () => {
         password: data.password,
         avatar_url: data.avatar_url,
       });
-      navigate("/login?registered=true", { replace: true });
+      navigate(`${ROUTES.login}?registered=true`, { replace: true });
     } catch (error) {
       setSubmitError(getErrorMessage(error));
     }
@@ -234,7 +235,7 @@ export const Register = () => {
       <p className="mt-7 text-center text-sm text-slate-500">
         Đã có tài khoản?{" "}
         <Link
-          to="/login"
+          to={ROUTES.login}
           className="font-bold text-indigo-600 hover:text-indigo-500"
         >
           Đăng nhập

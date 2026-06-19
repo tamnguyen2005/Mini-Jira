@@ -4,6 +4,8 @@ import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "./components/ErrorFallBack";
 import { Toaster } from "react-hot-toast";
 import { ROUTES } from "./constant/app.constants";
+import { RootRedirect } from "./guards/RootRedirect";
+import { RouteGuard } from "./guards/RouteGuard";
 
 const Dashboard = lazy(() =>
   import("./pages/DashBoard").then((module) => ({ default: module.Dashboard })),
@@ -29,7 +31,15 @@ function App() {
           }
         >
           <Routes>
-            <Route path={ROUTES.home} element={<Dashboard />} />
+            <Route path={ROUTES.root} element={<RootRedirect />} />
+            <Route
+              path={ROUTES.home}
+              element={
+                <RouteGuard>
+                  <Dashboard />
+                </RouteGuard>
+              }
+            />
             <Route path={ROUTES.login} element={<Login />} />
             <Route path={ROUTES.register} element={<Register />} />
             <Route path="*" element={<Navigate to={ROUTES.home} replace />} />

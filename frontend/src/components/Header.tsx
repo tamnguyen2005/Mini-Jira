@@ -1,8 +1,10 @@
 import { useAuthStore } from "../stores/auth.store";
 import { useBoardStore } from "../stores/board.store";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { ROUTES } from "../constant/app.constants";
 
 export const Header = () => {
+  const navigate = useNavigate();
   const openCreateModal = useBoardStore((state) => state.openCreateModal);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const user = useAuthStore((state) => state.user);
@@ -29,17 +31,17 @@ export const Header = () => {
               </span>
               <button
                 type="button"
-                onClick={logout}
+                onClick={() => {
+                  logout();
+                  navigate(ROUTES.login, { replace: true });
+                }}
                 className={buttonClassName}
               >
                 Logout
               </button>
             </div>
           ) : (
-            <Link
-              to="/login"
-              className={buttonClassName}
-            >
+            <Link to={ROUTES.login} className={buttonClassName}>
               Login
             </Link>
           )}

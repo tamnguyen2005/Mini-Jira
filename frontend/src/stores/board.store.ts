@@ -11,6 +11,8 @@ import { toast } from "react-hot-toast";
 interface BoardState {
   tasks: Task[];
   totalTasks: number;
+  page: number;
+  totalPages: number;
   isModalOpen: boolean;
   taskToEdit: Task | null;
   isLoading: boolean;
@@ -39,6 +41,8 @@ export const useBoardStore = create<BoardState>()(
         isLoading: false,
         fetchError: null,
         totalTasks: 0,
+        page: 1,
+        totalPages: 1,
         openCreateModal: () =>
           set(
             { isModalOpen: true, taskToEdit: null },
@@ -127,6 +131,8 @@ export const useBoardStore = create<BoardState>()(
                 tasks,
                 isLoading: false,
                 totalTasks: response.pagination.total,
+                page: response.pagination.page,
+                totalPages: response.pagination.totalPages,
               },
               false,
               "task/fetchTasks",

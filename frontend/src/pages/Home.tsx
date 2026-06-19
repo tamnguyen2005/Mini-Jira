@@ -8,6 +8,7 @@ import { boardColumnSkeleton } from "../constant/skeleton.constant";
 import { FilterToolBar } from "../components/FilterToolBar";
 import { useSearchParams } from "react-router-dom";
 import { TASK_COLUMNS } from "../constant/board.constant";
+import { PaginationBar } from "../components/PaginationBar";
 export const Home = () => {
   const [showSkeleton, setShowSkeleton] = useState(false);
   const tasks = useBoardStore((state) => state.tasks);
@@ -38,6 +39,7 @@ export const Home = () => {
   const priorityUrl = searchParams.get("priority") || "";
   const dueFromUrl = searchParams.get("dueFrom") || "";
   const dueToUrl = searchParams.get("dueTo") || "";
+  const pageUrl = searchParams.get("page") || 1;
   useEffect(() => {
     void fetchTasks({
       title: titleUrl || undefined,
@@ -45,8 +47,17 @@ export const Home = () => {
       assigneeId: assigneeIdUrl || undefined,
       dueFrom: dueFromUrl || undefined,
       dueTo: dueToUrl || undefined,
+      page: Number(pageUrl),
     });
-  }, [fetchTasks, titleUrl, priorityUrl, assigneeIdUrl, dueFromUrl, dueToUrl]);
+  }, [
+    fetchTasks,
+    titleUrl,
+    priorityUrl,
+    assigneeIdUrl,
+    dueFromUrl,
+    dueToUrl,
+    pageUrl,
+  ]);
 
   useEffect(() => {
     const timer = window.setTimeout(
@@ -88,6 +99,7 @@ export const Home = () => {
             vụ phù hợp với bộ lọc.
           </p>
         )}
+        <PaginationBar />
         {showSkeleton ? (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
             {Array.from({ length: boardColumnSkeleton }).map((_, index) => (

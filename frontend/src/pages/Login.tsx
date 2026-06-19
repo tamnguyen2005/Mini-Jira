@@ -7,6 +7,7 @@ import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AuthService } from "../services/auth.service";
+import { ROUTES } from "../constant/app.constants";
 
 interface TokenPayload {
   sub: string;
@@ -59,7 +60,7 @@ export const Login = () => {
       const response = await AuthService.login(data);
       const user = decodeToken(response.accessToken);
       login(user, response.accessToken);
-      navigate("/", { replace: true });
+      navigate(ROUTES.home, { replace: true });
     } catch (error) {
       setSubmitError(getErrorMessage(error));
     }
@@ -170,7 +171,7 @@ export const Login = () => {
       <p className="mt-8 text-center text-sm text-slate-500">
         Chưa có tài khoản?{" "}
         <Link
-          to="/register"
+          to={ROUTES.register}
           className="font-bold text-indigo-600 hover:text-indigo-500"
         >
           Đăng ký miễn phí
