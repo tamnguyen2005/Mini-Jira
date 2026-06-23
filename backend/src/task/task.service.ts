@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -177,7 +178,11 @@ export class TaskService {
       }
     });
   }
-  async delete(id: string): Promise<void> {
+  async delete(id: string, delete_byId: string): Promise<void> {
+    const task = await this.findById(id);
+    if (task.created_byId !== delete_byId) {
+      throw new ForbiddenException('Bạn không thể xóa task tạo bởi người khác');
+    }
     await this.taskRepository.manager.transaction(async (manager) => {
       const task = await manager.findOne(Task, { where: { id } });
       if (!task)

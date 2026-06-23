@@ -160,9 +160,9 @@ export const useBoardStore = create<BoardState>()(
           try {
             await taskService.deleteTask(id);
             toast.success("Xóa task thành công");
-          } catch {
+          } catch (err) {
             set({ tasks: backup }, false, "task/delete_rollback");
-            toast.error("Xóa task thất bại");
+            toast.error(getErrorMessage(err));
           }
         },
       }),

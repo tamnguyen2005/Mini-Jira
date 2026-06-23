@@ -35,27 +35,33 @@ export class TaskController {
   }
   @Get()
   @HttpCode(200)
+  @UseGuards(AuthGuard)
   async get(@Query() queryTaskDto: QueryTaskDto) {
     return await this.taskService.findAll(queryTaskDto);
   }
   @Get(':id')
   @HttpCode(200)
+  @UseGuards(AuthGuard)
   async getById(@Param('id') id: string) {
     return await this.taskService.findById(id);
   }
   @Patch('status')
   @HttpCode(200)
+  @UseGuards(AuthGuard)
   async updateStatus(@Body() updateStatusDto: UpdateTaskStatusDto) {
     await this.taskService.updateStatus(updateStatusDto);
   }
   @Put(':id')
   @HttpCode(200)
+  @UseGuards(AuthGuard)
   async update(@Param('id') id: string, @Body() updateDto: UpdateTaskDto) {
     return await this.taskService.updateAll(id, updateDto);
   }
   @Delete(':id')
   @HttpCode(204)
-  async delete(@Param('id') id: string) {
-    await this.taskService.delete(id);
+  @UseGuards(AuthGuard)
+  async delete(@Param('id') id: string, @Req() request: AuthenticatedRequest) {
+    const delete_byId = request.user.sub;
+    await this.taskService.delete(id, delete_byId);
   }
 }

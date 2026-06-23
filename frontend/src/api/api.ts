@@ -1,5 +1,27 @@
-import axios from "axios";
+import axios, { type InternalAxiosRequestConfig } from "axios";
 import { useAuthStore } from "../stores/auth.store";
+
+type RetryableRequestConfig = InternalAxiosRequestConfig & {
+  retry?: boolean;
+};
+
+type ApiErrorPayload = {
+  message?: unknown;
+  [key: string]: unknown;
+};
+
+const getRejectReason = (error: unknown): unknown => {
+  if (axios.isAxiosError<ApiErrorPayload>(error)) {
+    return error.response?.data ?? error.message;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return error;
+};
+
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
 });
@@ -10,19 +32,24 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     return config;
   },
-  (error) => Promise.reject(error),
+  (error: unknown) => Promise.reject(error),
 );
 api.interceptors.response.use(
   (response) => response.data,
-  (error) => {
-    const originalRequest = error.config;
+  (error: unknown) => {
+    if (!axios.isAxiosError<ApiErrorPayload>(error)) {
+      return Promise.reject(getRejectReason(error));
+    }
+
+    const originalRequest = error.config as RetryableRequestConfig | undefined;
     if (
       error.response?.status === 401 &&
-      !originalRequest.retry &&
+      !originalRequest?.retry &&
       error.message !== "canceled"
     ) {
       useAuthStore.getState().logout();
     }
-    return Promise.reject(error?.response?.data || error.message);
+
+    return Promise.reject(getRejectReason(error));
   },
 );
