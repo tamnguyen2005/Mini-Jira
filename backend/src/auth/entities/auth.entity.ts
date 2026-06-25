@@ -10,7 +10,7 @@ import {
 export class Auth {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
-  @Column({ type: 'varchar', length: 255, nullable: false })
+  @Column({ type: 'varchar', length: 255, nullable: false, unique: true })
   email!: string;
   @Column({ type: 'varchar', length: 255, nullable: false })
   password_hash!: string;
